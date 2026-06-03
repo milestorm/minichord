@@ -1,0 +1,604 @@
+/* ============================================================
+   minicontrol — VST-style preset editor
+   ============================================================ */
+
+:root {
+  --accent-hue: 200;
+  --accent: hsl(var(--accent-hue), 85%, 55%);
+  --accent-soft: hsl(var(--accent-hue), 85%, 55%, 0.18);
+  --accent-glow: hsl(var(--accent-hue), 85%, 55%, 0.55);
+
+  --bg: #f4f5f8;
+  --bg-elev: #ffffff;
+  --bg-panel: #ffffff;
+  --bg-track: #e2e5ec;
+  --bg-track-strong: #d4d8e0;
+  --border: #d8dde6;
+  --border-strong: #b9c0cc;
+  --text: #1d2230;
+  --text-dim: #6b7383;
+  --text-faint: #9aa1ad;
+  --shadow: 0 1px 2px rgba(20, 30, 60, 0.06), 0 4px 12px rgba(20, 30, 60, 0.07);
+  --shadow-strong: 0 6px 28px rgba(20, 30, 60, 0.16);
+
+  --c-env: #f5a623;
+  --c-osc: #50c878;
+  --c-filter: #7a78ff;
+  --c-lfo: #ff5f8b;
+  --c-fx: #1ec8c8;
+  --c-rythm: #ffb13d;
+  --c-midi: #888;
+}
+
+body.dark-mode {
+  --bg: #15171c;
+  --bg-elev: #1d2027;
+  --bg-panel: #232730;
+  --bg-track: #11131a;
+  --bg-track-strong: #0c0e14;
+  --border: #2e3340;
+  --border-strong: #404656;
+  --text: #e6e8ee;
+  --text-dim: #a3a9b6;
+  --text-faint: #6f7684;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 14px rgba(0,0,0,0.35);
+  --shadow-strong: 0 8px 32px rgba(0,0,0,0.55);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  margin: 0;
+  padding: 0;
+}
+
+body { padding: 0 24px 80px; }
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ----- Header ---------------------------------------------- */
+.vst-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 18px;
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 50;
+}
+.vst-header h1 {
+  font-size: 1.3em;
+  font-weight: 700;
+  margin: 0 8px 0 0;
+  letter-spacing: -0.01em;
+}
+.vst-header h1 span { color: var(--accent); }
+.vst-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg-track);
+  font-size: 0.85em;
+  border: 1px solid var(--border);
+}
+.vst-status .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #d44;
+  box-shadow: 0 0 6px #d44;
+}
+.vst-status.connected .dot { background: #4caf50; box-shadow: 0 0 8px #4caf50; }
+.vst-status.disconnected .dot { background: #ff9800; box-shadow: 0 0 8px #ff9800; }
+.vst-status.connected { color: #2e7d32; }
+.vst-status.disconnected { color: #b86700; }
+
+.vst-spacer { flex: 1; }
+
+.vst-btn {
+  background: var(--bg-elev);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.85em;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.vst-btn:hover { border-color: var(--accent); color: var(--accent); }
+.vst-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.vst-btn.primary:hover { filter: brightness(1.08); color: #fff; }
+.vst-btn.icon { padding: 6px 8px; min-width: 32px; }
+.vst-btn:disabled, body.disconnected .vst-btn:not(.always-on) {
+  opacity: 0.4; pointer-events: none;
+}
+
+.vst-select {
+  background: var(--bg-elev);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 0.85em;
+  font-family: inherit;
+}
+.vst-select:focus { outline: none; border-color: var(--accent); }
+
+.vst-toolbar-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+}
+.vst-toolbar-group .label {
+  font-size: 0.75em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ----- Tabs ------------------------------------------------ */
+.vst-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+.vst-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--text-dim);
+  font-size: 1em;
+  font-weight: 600;
+  padding: 10px 18px;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.01em;
+  transition: color 0.15s, border-color 0.15s;
+}
+.vst-tab:hover { color: var(--text); }
+.vst-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.vst-tab-pane { display: none; }
+.vst-tab-pane.active { display: block; }
+
+/* ----- Panel grid ----------------------------------------- */
+.vst-panel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.vst-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px 16px;
+  box-shadow: var(--shadow);
+  position: relative;
+  transition: border-color 0.15s;
+}
+.vst-panel.span-2 { grid-column: span 2; }
+.vst-panel.span-3 { grid-column: span 3; }
+.vst-panel.full { grid-column: 1 / -1; }
+@media (max-width: 800px) { .vst-panel.span-2, .vst-panel.span-3 { grid-column: span 1; } }
+
+.vst-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.vst-panel-head .swatch {
+  width: 6px; height: 18px; border-radius: 3px;
+  background: var(--panel-color, var(--accent));
+}
+.vst-panel-head h3 {
+  font-size: 0.95em;
+  font-weight: 700;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text);
+}
+.vst-panel-head .subtitle {
+  font-size: 0.75em;
+  color: var(--text-faint);
+  margin-left: auto;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.vst-knob-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 10px;
+  align-items: flex-start;
+}
+
+/* ----- Knob ------------------------------------------------ */
+.vst-knob {
+  width: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.vst-knob.compact { width: 56px; }
+.vst-knob.large { width: 80px; }
+
+.vst-knob .dial {
+  width: 56px;
+  height: 56px;
+  cursor: ns-resize;
+  display: block;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.12));
+  touch-action: none;
+}
+.vst-knob.compact .dial { width: 48px; height: 48px; }
+.vst-knob.large .dial { width: 70px; height: 70px; }
+
+.vst-knob .dial .ring-bg { fill: none; stroke: var(--bg-track-strong); stroke-width: 4; stroke-linecap: round; }
+.vst-knob .dial .ring-fg { fill: none; stroke: var(--knob-color, var(--accent)); stroke-width: 4; stroke-linecap: round; transition: stroke 0.2s; }
+.vst-knob .dial .body { fill: var(--bg-elev); stroke: var(--border-strong); stroke-width: 1; }
+.vst-knob .dial .indicator { stroke: var(--knob-color, var(--accent)); stroke-width: 2.5; stroke-linecap: round; }
+.vst-knob.bipolar .dial .ring-fg { stroke-dasharray: var(--bipolar-dash); }
+.vst-knob:focus-within .dial .body { stroke: var(--accent); }
+
+.vst-knob .name {
+  font-size: 0.72em;
+  text-align: center;
+  color: var(--text-dim);
+  text-transform: lowercase;
+  line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+.vst-knob .value {
+  font-size: 0.7em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+  font-weight: 500;
+}
+
+.vst-knob:hover .dial .body { stroke: var(--accent); }
+.vst-knob.dragging .dial .body { stroke: var(--accent); }
+
+/* ----- Toggle --------------------------------------------- */
+.vst-toggle {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  -webkit-user-select: none;
+  user-select: none;
+  padding: 4px 6px;
+}
+.vst-toggle .switch {
+  width: 38px;
+  height: 22px;
+  background: var(--bg-track-strong);
+  border-radius: 999px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.18s;
+  border: 1px solid var(--border);
+}
+.vst-toggle .switch::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.18s, background 0.18s;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+}
+.vst-toggle.on .switch { background: var(--knob-color, var(--accent)); border-color: transparent; }
+.vst-toggle.on .switch::after { transform: translateX(16px); }
+.vst-toggle .name {
+  font-size: 0.72em;
+  color: var(--text-dim);
+  text-transform: lowercase;
+}
+
+/* ----- Segmented ------------------------------------------ */
+.vst-segmented {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.vst-segmented .name {
+  font-size: 0.72em;
+  color: var(--text-dim);
+  text-transform: lowercase;
+}
+.vst-segmented .options {
+  display: inline-flex;
+  background: var(--bg-track);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.vst-segmented .seg {
+  padding: 4px 10px;
+  font-size: 0.78em;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  transition: background 0.15s, color 0.15s;
+  border-right: 1px solid var(--border);
+}
+.vst-segmented .seg:last-child { border-right: none; }
+.vst-segmented .seg:hover { color: var(--text); }
+.vst-segmented .seg.active {
+  background: var(--knob-color, var(--accent));
+  color: #fff;
+}
+
+/* ----- Dropdown ------------------------------------------- */
+.vst-dropdown {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.vst-dropdown .name {
+  font-size: 0.72em;
+  color: var(--text-dim);
+  text-transform: lowercase;
+}
+.vst-dropdown select {
+  background: var(--bg-elev);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 0.85em;
+  font-family: inherit;
+}
+
+/* ----- Color wheel ---------------------------------------- */
+.vst-colorwheel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.vst-colorwheel .wheel {
+  width: 88px; height: 88px;
+  border-radius: 50%;
+  cursor: crosshair;
+  background:
+    radial-gradient(circle at center, var(--bg-elev) 25%, transparent 26%),
+    conic-gradient(
+      hsl(0,100%,55%), hsl(60,100%,55%), hsl(120,100%,55%),
+      hsl(180,100%,55%), hsl(240,100%,55%), hsl(300,100%,55%), hsl(360,100%,55%)
+    );
+  border: 2px solid var(--border-strong);
+  position: relative;
+  touch-action: none;
+}
+.vst-colorwheel .marker {
+  position: absolute;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--bg-elev);
+  border: 2px solid #000;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+body.dark-mode .vst-colorwheel .marker { border-color: #fff; }
+.vst-colorwheel .name { font-size: 0.72em; color: var(--text-dim); text-transform: lowercase; }
+.vst-colorwheel .value { font-size: 0.7em; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+
+/* ----- Visualizers ---------------------------------------- */
+.vst-viz {
+  background: var(--bg-track);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 12px;
+}
+.vst-viz svg { display: block; width: 100%; height: 100%; }
+
+.vst-adsr { height: 110px; }
+.vst-adsr .grid { stroke: var(--border); stroke-width: 0.5; }
+.vst-adsr .curve { fill: var(--accent-soft); stroke: var(--knob-color, var(--c-env)); stroke-width: 2; stroke-linejoin: round; }
+.vst-adsr .handle { fill: var(--knob-color, var(--c-env)); stroke: var(--bg-elev); stroke-width: 2; cursor: grab; r: 5; }
+.vst-adsr .handle:hover { r: 6; }
+.vst-adsr .handle.dragging { cursor: grabbing; r: 7; }
+.vst-adsr .label { font-size: 9px; fill: var(--text-faint); font-family: inherit; }
+
+.vst-filter-resp { height: 90px; }
+.vst-filter-resp .grid { stroke: var(--border); stroke-width: 0.5; }
+.vst-filter-resp .curve { fill: none; stroke: var(--c-filter); stroke-width: 2; stroke-linejoin: round; }
+.vst-filter-resp .area { fill: hsl(240, 80%, 70%, 0.15); }
+
+.vst-lfo-mini { height: 56px; }
+.vst-lfo-mini .wave { fill: none; stroke: var(--c-lfo); stroke-width: 2; }
+.vst-lfo-mini .axis { stroke: var(--border); stroke-width: 0.5; }
+
+/* Waveform picker */
+.vst-waveform-picker {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.vst-waveform-picker .opt {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 4px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.vst-waveform-picker .opt:hover { border-color: var(--accent); }
+.vst-waveform-picker .opt.active {
+  border-color: var(--knob-color, var(--accent));
+  background: var(--accent-soft);
+}
+.vst-waveform-picker .opt svg { width: 100%; height: 22px; }
+.vst-waveform-picker .opt svg path { fill: none; stroke: var(--text); stroke-width: 1.5; }
+.vst-waveform-picker .opt.active svg path { stroke: var(--knob-color, var(--accent)); }
+.vst-waveform-picker .opt .lbl { font-size: 0.65em; color: var(--text-faint); }
+.vst-waveform-picker .opt.active .lbl { color: var(--knob-color, var(--accent)); }
+.vst-waveform-picker .name { font-size: 0.72em; color: var(--text-dim); margin-bottom: 4px; text-transform: lowercase; }
+
+/* Rhythm grid */
+.vst-rhythm {
+  background: var(--bg-track);
+  border-radius: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+}
+.vst-rhythm .row {
+  display: grid;
+  grid-template-columns: 70px repeat(16, 1fr);
+  gap: 3px;
+  margin-bottom: 3px;
+  align-items: center;
+}
+.vst-rhythm .row .label {
+  font-size: 0.75em;
+  color: var(--text-dim);
+}
+.vst-rhythm .cell {
+  aspect-ratio: 1;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.1s, transform 0.1s;
+  min-height: 18px;
+}
+.vst-rhythm .cell:hover { transform: scale(1.1); }
+.vst-rhythm .cell.beat-strong { border-color: var(--border-strong); }
+.vst-rhythm .cell.on { background: var(--knob-color, var(--accent)); border-color: var(--knob-color, var(--accent)); }
+
+/* ----- Number popover ------------------------------------- */
+.vst-popover {
+  position: fixed;
+  z-index: 1000;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow-strong);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+  font-size: 0.85em;
+}
+.vst-popover .pop-title {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.95em;
+}
+.vst-popover .pop-range {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-faint);
+  font-size: 0.78em;
+  font-variant-numeric: tabular-nums;
+}
+.vst-popover input[type=number] {
+  background: var(--bg-track);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 1em;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  width: 100%;
+}
+.vst-popover input[type=number]:focus { outline: none; border-color: var(--accent); }
+.vst-popover .pop-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.vst-popover .pop-help {
+  font-size: 0.7em;
+  color: var(--text-faint);
+}
+
+/* ----- Tooltip -------------------------------------------- */
+.vst-tip {
+  position: fixed;
+  z-index: 1100;
+  background: rgba(20,24,34,0.95);
+  color: #fff;
+  padding: 5px 8px;
+  border-radius: 6px;
+  font-size: 0.78em;
+  max-width: 240px;
+  pointer-events: none;
+  box-shadow: var(--shadow);
+}
+
+/* ----- Connection state ---------------------------------- */
+body.disconnected .vst-panel-grid { opacity: 0.5; pointer-events: none; }
+body.disconnected .vst-tabs { opacity: 0.6; }
+
+/* ----- Connection step list ------------------------------ */
+.vst-conn-steps {
+  margin: 0;
+  padding: 8px 12px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  list-style: none;
+  font-size: 0.85em;
+}
+.vst-conn-steps li { padding: 3px 0; color: var(--text-dim); }
+.vst-conn-steps li::before { content: '✓ '; color: #4caf50; }
+.vst-conn-steps li.unsatisfied { color: var(--text); }
+.vst-conn-steps li.unsatisfied::before { content: '○ '; color: var(--text-faint); }
+
+#information_zone {
+  font-size: 0.85em;
+  color: var(--text-dim);
+  margin-top: 8px;
+}
+
+/* hide unused legacy elements just in case */
+.legacy-hidden { display: none !important; }
