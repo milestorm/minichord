@@ -435,7 +435,8 @@ body.dark-mode .vst-colorwheel .marker { border-color: #fff; }
 
 .vst-adsr { height: 110px; }
 .vst-adsr .grid { stroke: var(--border); stroke-width: 0.5; }
-.vst-adsr .curve { fill: var(--accent-soft); stroke: var(--knob-color, var(--c-env)); stroke-width: 2; stroke-linejoin: round; }
+.vst-adsr .area { fill: var(--accent-soft); stroke: none; }
+.vst-adsr .curve { fill: none; stroke: var(--knob-color, var(--c-env)); stroke-width: 2; stroke-linejoin: round; }
 .vst-adsr .handle { fill: var(--knob-color, var(--c-env)); stroke: var(--bg-elev); stroke-width: 2; cursor: grab; r: 5; }
 .vst-adsr .handle:hover { r: 6; }
 .vst-adsr .handle.dragging { cursor: grabbing; r: 7; }

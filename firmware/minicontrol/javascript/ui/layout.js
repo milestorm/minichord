@@ -132,8 +132,8 @@
       }
     }
 
-    if (groupName === 'Tremolo' || (groupName === 'Vibrato' && false)) {
-      // LFO mini for tremolo
+    if (groupName === 'Tremolo' || groupName === 'Vibrato') {
+      // LFO mini for tremolo / vibrato
       const wf = paramsInGroup.find(p => p.name === 'waveform');
       const fq = paramsInGroup.find(p => p.name === 'frequency');
       const am = paramsInGroup.find(p => p.name === 'amplitude');
@@ -293,7 +293,7 @@
     for (const sec of ['global_parameter', 'harp_parameter', 'chord_parameter']) {
       for (const p of data[sec]) {
         allParams.push(p);
-        paramMeta[p.sysex_adress] = p;
+        paramMeta[p.sysex_adress] = W.metaFromParam(p);
       }
     }
 

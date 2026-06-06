@@ -144,6 +144,10 @@
     baseLn.setAttribute('y1', 90); baseLn.setAttribute('y2', 90);
     svg.appendChild(baseLn);
 
+    const area = document.createElementNS(NS, 'path');
+    area.setAttribute('class', 'area');
+    svg.appendChild(area);
+
     const curve = document.createElementNS(NS, 'path');
     curve.setAttribute('class', 'curve');
     svg.appendChild(curve);
@@ -187,15 +191,14 @@
       const rRaw = params.release ? getRawAt(params.release) : 0;
       const a = aRaw, h = hRaw, d = dRaw, r = rRaw;
       const sust = sRaw / 100; // float (0..1)
-      // total ms baseline; use log scale so short values are visible
-      const total = Math.max(50, a + h + d + r + 200);
       const W_ = 200, H = 100, top = 8, btm = 90;
-      const x = (ms) => (ms / total) * W_;
       const y0 = btm; // 0
       const y1 = top; // 1
       const ySust = btm - (btm - top) * sust;
-      // points: (0,0) -> (a, peak) -> (a+h, peak) -> (a+h+d, sust) -> (a+h+d+sustainRegion, sust) -> end (a+h+d+sustainRegion + r, 0)
-      const sustainRegion = Math.max(20, total * 0.15);
+      // Compute sustainRegion first so total fully contains the sequence
+      const sustainRegion = Math.max(20, (a + h + d + r) * 0.15);
+      const total = Math.max(50, (a + h + d + sustainRegion + r) * 1.05 + 10);
+      const x = (ms) => (ms / total) * W_;
       const px = [
         [0, y0],
         [x(a), y1],
@@ -205,8 +208,9 @@
         [x(a + h + d + sustainRegion + r), y0],
         [W_, y0]
       ];
-      const dStr = px.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ') + ' L ' + W_ + ' ' + y0 + ' Z';
-      curve.setAttribute('d', dStr);
+      const openPath = px.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+      curve.setAttribute('d', openPath);
+      area.setAttribute('d', openPath + ' L ' + W_ + ' ' + y0 + ' L 0 ' + y0 + ' Z');
     }
     redraw();
     return { element: root, redraw, knobs };
@@ -266,7 +270,8 @@
 
     function redraw() {
       const cutoffAddr = addrs.frequency || addrs.base_frequency || addrs.cutoff;
-      const cutoff = rawAt(cutoffAddr) || 1000;
+      const rawCutoff = rawAt(cutoffAddr);
+      const cutoff = (rawCutoff > 0) ? rawCutoff : 1;
       const cutoffMax = (paramMeta[cutoffAddr] || { max: 5000 }).max;
       const q = getUi('resonance') || 0.7;
       const lp = getUi('lowpass') || 0;
